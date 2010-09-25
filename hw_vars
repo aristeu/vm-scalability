@@ -1,0 +1,59 @@
+#!/bin/bash
+
+USEMEM=./usemem
+
+SHM_FILE=/dev/shm/sparse-${0/.*case-/}
+
+SPARSE_ROOT=/tmp/vm-scalability
+SPARSE_FILE=$SPARSE_ROOT/sparse-${0/.*case-/}
+# SPARSE_FSTYPE=$(/usr/bin/stat -fc %T $SPARSE_ROOT)
+# [[ $SPARSE_FSTYPE = tmpfs ]] && echo "$SPARSE_ROOT is tmpfs, sparse files won't eat memory." && exit 1
+# [[ $SPARSE_FSTYPE = nfs   ]] && echo "$SPARSE_ROOT is nfs, sparse file reads will be slow." && exit 1
+
+PIDFILE=$SPARSE_ROOT/${0/.*case-/}.pid
+
+
+# sparse files won't work as expected on tmpfs/nfs
+create_sparse_root () {
+	truncate -s $((256<<20)) $SPARSE_ROOT.img
+	# mkfs.btrfs $SPARSE_ROOT.img > /dev/null
+	mkfs.ext3 -F $SPARSE_ROOT.img > /dev/null
+	# mkfs.xfs $SPARSE_ROOT.img > /dev/null
+	[[ -d $SPARSE_ROOT ]] || mkdir $SPARSE_ROOT
+	mount -o loop $SPARSE_ROOT.img $SPARSE_ROOT
+}
+
+remove_sparse_root () {
+	umount $SPARSE_ROOT
+	# rmdir $SPARSE_ROOT
+	rm $SPARSE_ROOT.img
+}
+
+create_sparse_file () {
+	name=$1
+	size=$2
+	truncate $name -s $size
+	# dd if=/dev/zero of=$name bs=1k count=1 seek=$((size >> 10)) 2>/dev/null
+}
+
+
+pagesize=$(getconf PAGESIZE)
+
+nr_cpu=$(grep -c processor /proc/cpuinfo)
+nr_node=$(echo /sys/devices/system/node/node* | wc -l)
+
+while read key val; do
+	eval $key=$val
+done < /proc/vmstat
+
+reclaimable=$((nr_free_pages + nr_file_pages))
+reclaimable=$((reclaimable * pagesize))
+
+while read key val unit; do
+	key=${key%%:}
+	key=${key%%)}
+	key=${key/\(/_}
+	eval $key=$val
+done < /proc/meminfo
+
+mem=$((MemTotal << 10))

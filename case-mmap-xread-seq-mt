@@ -1,0 +1,9 @@
+#!/bin/bash
+
+source hw_vars
+
+create_sparse_file $SPARSE_FILE $((mem / 2))
+
+$USEMEM -t $nr_cpu -f $SPARSE_FILE --prealloc --readonly $((mem / 2))
+
+rm $SPARSE_FILE

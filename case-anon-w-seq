@@ -1,0 +1,5 @@
+#!/bin/bash
+
+source hw_vars
+
+$USEMEM -n $nr_cpu $((mem / nr_cpu / 2))

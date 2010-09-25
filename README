@@ -1,0 +1,24 @@
+Usage:
+
+        ./run [case-XXX]
+
+It will try to collect /proc/lock_stat, /debug/gcov and perf stats,
+if the kernel features are enabled:
+
+        CONFIG_LOCK_STAT=y
+
+        CONFIG_GCOV_KERNEL=y
+        CONFIG_GCOV_PROFILE_ALL=y
+
+        CONFIG_PERF_EVENTS=y
+        CONFIG_FTRACE_SYSCALLS=y
+
+and the perf tool is installed.
+
+The collected data will be saved to directory $(hostname)-*/case-*.
+
+$(hostname)-*/elapsed-time will be auto updated by ./run.
+
+$(hostname)-*/{mm,top-locks,top-functions} can be manually updated
+by running ./gcov-sum-all.
+

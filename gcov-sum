@@ -1,0 +1,27 @@
+#!/usr/bin/awk -f
+
+BEGIN {
+	FS=":"
+}
+
+{
+	sum[FNR] += int($1)
+	line[FNR] = $0
+}
+
+END {
+	for (i=1; i <= FNR; i++) {
+		if (line[i] ~ /        -:/) {
+			if (sum[i] != 0)
+				printf "    ERROR:%s\n", line[i]
+			else
+				printf "%s\n", line[i]
+		} else {
+			sub(/^[^:]*:/, "", line[i])
+			if (sum[i] == 0)
+				printf "    #####:%s\n", line[i]
+			else
+				printf "%9d:%s\n", sum[i], line[i]
+		}
+	}
+}

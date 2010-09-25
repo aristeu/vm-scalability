@@ -1,0 +1,5 @@
+#!/bin/bash
+
+source hw_vars
+
+$USEMEM -n 20000 0 --sleep 10

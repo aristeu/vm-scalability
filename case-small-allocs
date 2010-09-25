@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# flush memory and
+# create lots of small continuous VMAs
+
+source hw_vars
+
+$USEMEM -n $nr_cpu --readonly --unit $((10 * pagesize)) $((10 * mem / nr_cpu))

@@ -1,0 +1,13 @@
+#!/usr/bin/awk -f
+#
+# Usage: $0 mm/filemap.c.gcov | sort -nr
+
+BEGIN {
+	FS = ":"
+}
+
+/[0-9]+: +[0-9]+:[a-z].*\(.*/ {
+	match($3, /([a-zA-Z_0-9]+)\(/)
+	printf "%s  %s\n", $1, substr($3, RSTART, RLENGTH-1)
+}
+

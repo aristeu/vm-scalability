@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# mem_cgroup->reclaim_param_lock
+# 1801700	mem_cgroup_note_reclaim_priority
+# 900883	mem_cgroup_record_reclaim_priority
+# 900781	get_swappiness
+
+# lru_lock coverage
+
+# zone->lock coverage
+# 449081	free_pcppages_bulk
+# 441317	rmqueue_bulk
+
+source hw_vars
+
+CGROUP=$(mount -t cgroup | grep memory | cut -f3 -d' ')
+if [[ -z $CGROUP ]]; then
+	CGROUP=/cgroup
+	[[ -d $CGROUP ]] || mkdir $CGROUP || exit
+	[[ -n $(ls $CGROUP) ]] && echo "$CGROUP not empty" && exit
+	mount -t cgroup none $CGROUP -o memory || exit
+fi
+
+[[ -d $CGROUP/vmscale ]] || mkdir $CGROUP/vmscale || exit
+
+echo $$ 		> $CGROUP/vmscale/tasks
+echo $((mem / 3))	> $CGROUP/vmscale/memory.limit_in_bytes
+
+
+source case-lru-file-readonce

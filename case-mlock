@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# lru_lock coverage
+# 1077642	putback_lru_page
+# 1070364	isolate_lru_page
+# 1063751	add_page_to_unevictable_list
+
+# zone->lock coverage
+# 41206		free_pcppages_bulk
+# 29641		rmqueue_bulk
+
+source hw_vars
+
+$USEMEM -n $nr_cpu --mlock $((reclaimable / nr_cpu / 3))

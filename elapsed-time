@@ -1,0 +1,3 @@
+#!/bin/sh
+
+grep 'seconds time elapsed' $1/case-*/perf-stat | while read a b c; do printf "%18.9f\t%s\n" $b $(basename $(dirname $a)); done > $1/elapsed-time

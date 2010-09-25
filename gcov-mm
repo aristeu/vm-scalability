@@ -1,0 +1,26 @@
+#!/bin/sh
+
+DEBUGFS=/sys/kernel/debug
+GCOV_ROOT=$DEBUGFS/gcov
+
+if [[ $(/usr/bin/stat -fc %T $DEBUGFS) != debugfs ]]; then
+	mount -t debugfs debugfs $DEBUGFS
+fi
+if [[ ! -d $GCOV_ROOT ]]; then
+	echo $GCOV_ROOT does not exist
+	echo Forgot to enable CONFIG_GCOV_KERNEL / CONFIG_GCOV_PROFILE_ALL?
+	exit 1
+fi
+
+GCOV_TREE=$(find $GCOV_ROOT -name fs)
+GCOV_TREE=$(dirname $GCOV_TREE)
+MM_FILES=$(cd $GCOV_TREE/mm; echo *.gcda | sed 's/\.gcda/.c/'; cd - > /dev/null)
+
+cp -a $GCOV_TREE/mm/ . || exit 
+
+cd mm || exit
+
+for file in $MM_FILES
+do
+	gcov $file > /dev/null
+done

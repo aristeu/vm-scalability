@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# flush memory with use-once page cache reads
+
+# lru_lock coverage
+# 1781926	____pagevec_lru_add
+#  736056	shrink_inactive_list
+
+source hw_vars
+
+for i in `seq 1 $nr_cpu`
+do
+	create_sparse_file $SPARSE_FILE-$i $((10 * mem / nr_cpu))
+	cp $SPARSE_FILE-$i /dev/null &
+done
+
+wait
+
+rm `seq -f $SPARSE_FILE-%g 1 $nr_cpu`

@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# fill memory with clean shm/tmpfs pages
+
+source hw_vars
+
+size=$((mem / 3))
+size=$((mem))
+
+create_sparse_file /dev/shm/XXX $size
+
+$USEMEM -f /dev/shm/XXX $size --readonly --detach --sleep 100000 --pid-file $PIDFILE
+
+rm /dev/shm/XXX

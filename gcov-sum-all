@@ -1,0 +1,13 @@
+#!/bin/bash
+
+files=$(cd $1/case-truncate/mm && echo *)
+
+mkdir -p $1/mm
+
+for f in $files
+do
+	./gcov-sum $1/*/mm/$f > $1/mm/$f
+done
+
+./gcov-fun  $1/mm/*.?.gcov | sort -nr     > $1/top-functions
+./gcov-lock $1/mm/*.?.gcov | sort -nr -k4 > $1/top-locks

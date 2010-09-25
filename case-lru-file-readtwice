@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# flush memory with use-twice page cache reads
+
+# lru_lock coverage
+# 2060819456	activate_page
+#  154664490	____pagevec_lru_add
+#  131308246	move_active_pages_to_lru
+#   65654100	shrink_active_list
+#   65510367	shrink_inactive_list
+
+# zone->lock coverage
+#   33637385	free_pcppages_bulk
+#   33650227	rmqueue_bulk
+
+source hw_vars
+
+for i in `seq 1 $nr_cpu`
+do
+	create_sparse_file $SPARSE_FILE-$i $((10 * mem / nr_cpu))
+	cp $SPARSE_FILE-$i /dev/null &
+	cp $SPARSE_FILE-$i /dev/null &
+done
+
+wait
+
+rm `seq -f $SPARSE_FILE-%g 1 $nr_cpu`

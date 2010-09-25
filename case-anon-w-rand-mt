@@ -1,0 +1,5 @@
+#!/bin/bash
+
+source hw_vars
+
+$USEMEM -t $nr_cpu --random $((mem / nr_cpu / 2))

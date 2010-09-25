@@ -1,0 +1,163 @@
+#!/bin/bash
+
+################################################################################
+# options 
+
+while getopts ckh flag
+do
+	case $flag in
+		c)
+			RUN_COMBINED=true
+			;;
+		k)
+			KEEP_EXISTING_DATA=true
+			;;
+		h)
+			echo "Usage: $0 [-c] [case-*]"
+			exit
+			;;
+	esac
+done
+shift $(($OPTIND - 1))
+
+[[ $(whoami) != root ]] && echo "root privilege required" && exit
+
+################################################################################
+# stats
+
+reset_stats () {
+	echo 0 > /proc/lock_stat
+	echo 1 > /sys/kernel/debug/gcov/reset
+}
+
+save_stats () {
+	base_dir=$(pwd)
+	mkdir -p $1
+	pushd $1 > /dev/null
+	cp /proc/lock_stat . && chmod go+r lock_stat
+	$base_dir/gcov-mm
+	$base_dir/gcov-fun  mm/*.?.gcov | sort -nr     > top-functions
+	$base_dir/gcov-lock mm/*.?.gcov | sort -nr -k4 > top-locks
+	rm mm/*.{gcno,gcda}
+	popd > /dev/null
+}
+
+perf_events="
+cpu-cycles
+instructions
+cache-references
+cache-misses
+branch-instructions
+branch-misses
+bus-cycles
+cpu-clock
+task-clock
+page-faults
+minor-faults
+major-faults
+context-switches
+cpu-migrations
+LLC-loads
+LLC-load-misses
+LLC-stores
+LLC-store-misses
+LLC-prefetches
+LLC-prefetch-misses
+dTLB-loads
+dTLB-load-misses
+dTLB-stores
+dTLB-store-misses
+lock:lock_acquire
+lock:lock_release
+lock:lock_contended
+lock:lock_acquired
+syscalls:sys_enter_mmap
+syscalls:sys_enter_mmap_pgoff
+syscalls:sys_enter_brk
+syscalls:sys_enter_msync
+syscalls:sys_enter_mremap
+syscalls:sys_enter_mprotect
+syscalls:sys_enter_mbind
+syscalls:sys_enter_migrate_pages
+syscalls:sys_enter_mlock
+syscalls:sys_enter_munlock
+syscalls:sys_enter_mlockall
+syscalls:sys_enter_munlockall
+syscalls:sys_enter_remap_file_pages
+"
+perf_events=$(echo $perf_events | sed 's/ / -e /g')
+
+################################################################################
+# run it
+
+source hw_vars
+
+OUT_DIR=$(hostname)-${nr_cpu}c-$(((mem + (1<<29))>>30))g
+TEST_CASES=${@:-$(echo case-*)}
+
+echo $((1<<30)) > /proc/sys/vm/max_map_count
+echo $((1<<20)) > /proc/sys/kernel/threads-max
+echo 1 > /proc/sys/vm/overcommit_memory
+echo 3 > /proc/sys/vm/drop_caches
+
+mount -o remount,size=0 /dev/shm
+
+create_sparse_root
+
+for testcase in $TEST_CASES
+do
+	[[ $testcase =~ '000' ]] && continue
+	[[ -x ./$testcase ]] || continue
+	[[ -n $KEEP_EXISTING_DATA && -d $OUT_DIR/$testcase ]] && continue
+	reset_stats
+	echo $testcase
+	./$testcase || break
+	save_stats $OUT_DIR/$testcase
+
+	# run again to collect perf stats
+	perf stat -a -e $perf_events ./$testcase 2>$OUT_DIR/$testcase/perf-stat || break
+
+	perf record -afg -o /dev/shm/perf.data ./$testcase 2>/dev/null || break
+	perf report -g fractal,5 -i /dev/shm/perf.data 2>/dev/null > $OUT_DIR/$testcase/perf-report
+done
+
+./elapsed-time $OUT_DIR
+
+remove_sparse_root
+
+################################################################################
+# run combined
+
+[[ -z $RUN_COMBINED ]] && exit # only run combined cases when asked
+
+kill_detached() {
+	for pidfile in $SPARSE_ROOT/*.pid
+	do
+		[[ -s $pidfile ]] && kill $(<$pidfile)
+	done
+}
+
+for testcase in $TEST_CASES
+do
+	for testcase2 in $TEST_CASES
+	do
+		[[ -x ./$testcase ]] || continue
+		[[ -x ./$testcase2 ]] || continue
+		[[ $testcase = $testcase2 ]] && continue
+		order="$testcase\n$testcase2"
+		order2=$(echo $order | sort)
+		[[ $order != $order2 ]] && continue
+		[[ $testcase2 =~ '000' ]] && continue
+		reset_stats
+		if [[ $testcase =~ '000' ]]; then
+			./$testcase  # take some memory (mem/3)
+			./$testcase2 # flush memory (mem*10)
+		else
+			./$testcase  &
+			./$testcase2 &
+			wait
+		fi
+		save_stats $OUT_DIR/$testcase-$testcase2
+		kill_detached
+	done
+done
