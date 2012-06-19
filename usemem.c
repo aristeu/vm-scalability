@@ -1,7 +1,9 @@
 /*
  * Allocate and dirty memory.
  *
- * Usage: usemem size[k|m|g]
+ * Usage: usemem size[k|m|g|t]
+ *
+ * gcc -lpthread -O -g -Wall  usemem.c -o usemem
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,6 +18,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <sys/sem.h>
+#include <sys/time.h>
 
 #define ALIGN(x,a) (((x)+(a)-1)&~((a)-1))
 
@@ -39,6 +42,8 @@ unsigned long unit = 0;
 unsigned long step = 0;
 unsigned long *prealloc;
 int sleep_secs = 0;
+time_t runtime_secs = 0;
+struct timeval start_time;
 int reps = 1;
 int do_mlock = 0;
 int do_getchar = 0;
@@ -62,7 +67,7 @@ int fd;
 void usage(int ok)
 {
 	fprintf(stderr,
-	"Usage: %s [options] size[k|m|g]\n"
+	"Usage: %s [options] size[k|m|g|t]\n"
 	"    -n|--nproc N        do job in N processes\n"
 	"    -t|--thread M       do job in M threads\n"
 	"    -a|--malloc         obtain memory from malloc()\n"
@@ -78,8 +83,9 @@ void usage(int ok)
 	"    -M|--mlock          mlock() the memory\n"
 	"    -S|--msync          msync(MS_SYNC) the memory\n"
 	"    -A|--msync-async    msync(MS_ASYNC) the memory\n"
-	"    -s|--sleep SEC      sleep SEC seconds when done\n"
 	"    -d|--detach         detach before go sleeping\n"
+	"    -s|--sleep SEC      sleep SEC seconds when done\n"
+	"    -T|--runtime SEC    terminate after SEC seconds\n"
 	"    -p|--pid-file FILE  store detached pid to FILE\n"
 	"    -g|--getchar        wait for <enter> before quitting\n"
 	"    -q|--quiet          operate quietly\n"
@@ -107,8 +113,9 @@ static const struct option opts[] = {
 	{ "repeat"	, 1, NULL, 'r' },
 	{ "file"	, 1, NULL, 'f' },
 	{ "pid-file"	, 1, NULL, 'p' },
-	{ "sleep"	, 1, NULL, 's' },
 	{ "detach"	, 0, NULL, 'd' },
+	{ "sleep"	, 1, NULL, 's' },
+	{ "runtime"	, 1, NULL, 'T' },
 	{ "getchar"	, 0, NULL, 'g' },
 	{ "help"	, 0, NULL, 'h' },
 	{ NULL		, 0, NULL, 0 }
@@ -134,6 +141,9 @@ unsigned long long memparse(const char *ptr, char **retptr)
 	unsigned long long ret = strtoull(ptr, &endptr, 0);
 
 	switch (*endptr) {
+	case 'T':
+	case 't':
+		ret <<= 10;
 	case 'G':
 	case 'g':
 		ret <<= 10;
@@ -308,6 +318,17 @@ unsigned long * allocate(unsigned long bytes)
 	return p;
 }
 
+int runtime_exceeded(void)
+{
+	struct timeval now;
+
+	if (!runtime_secs)
+		return 0;
+
+	gettimeofday(&now, NULL);
+	return (now.tv_sec - start_time.tv_sec > runtime_secs);
+}
+
 int do_unit(unsigned long bytes, struct drand48_data *rand_data)
 {
 	unsigned long i;
@@ -345,6 +366,10 @@ int do_unit(unsigned long bytes, struct drand48_data *rand_data)
 				d = p[idx];
 			else
 				p[idx] = idx;
+			if (!(i & 0xffff) && runtime_exceeded()) {
+				rep = reps;
+				break;
+			}
 		}
 		if (msync_mode)
 			msync(p, bytes, msync_mode);
@@ -389,6 +414,8 @@ long do_units(unsigned long bytes)
 
 		do_unit(size, &rand_data);
 		bytes -= size;
+		if (runtime_exceeded())
+			break;
 	} while (bytes);
 
 	if (opt_detach && up(sem_id))
@@ -462,7 +489,7 @@ int main(int argc, char *argv[])
 	pagesize = getpagesize();
 
 	while ((c = getopt_long(argc, argv,
-				"aAf:FPp:gqowRMm:n:t:ds:Sr:u:j:h", opts, NULL)) != -1) {
+				"aAf:FPp:gqowRMm:n:t:ds:T:Sr:u:j:h", opts, NULL)) != -1) {
 		switch (c) {
 		case 'a':
 			opt_malloc++;
@@ -511,6 +538,9 @@ int main(int argc, char *argv[])
 		case 's':
 			sleep_secs = strtol(optarg, NULL, 10);
 			break;
+		case 'T':
+			runtime_secs = strtol(optarg, NULL, 10);
+			break;
 		case 'd':
 			opt_detach = 1;
 			break;
@@ -548,6 +578,9 @@ int main(int argc, char *argv[])
 			ourname);
 		exit(1);
 	}
+
+	if (runtime_secs)
+		gettimeofday(&start_time, NULL);
 
 	bytes = memparse(argv[optind], NULL);
 
