@@ -11,7 +11,7 @@
 # 449081	free_pcppages_bulk
 # 441317	rmqueue_bulk
 
-source hw_vars
+source ./hw_vars
 
 CGROUP=$(mount -t cgroup | grep memory | cut -f3 -d' ')
 if [[ -z $CGROUP ]]; then

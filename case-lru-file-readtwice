@@ -13,7 +13,7 @@
 #   33637385	free_pcppages_bulk
 #   33650227	rmqueue_bulk
 
-source hw_vars
+source ./hw_vars
 
 for i in `seq 1 $nr_cpu`
 do

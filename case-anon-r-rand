@@ -1,5 +1,5 @@
 #!/bin/bash
 
-source hw_vars
+source ./hw_vars
 
 $USEMEM -n $nr_cpu --readonly --random $((mem / nr_cpu / 2))

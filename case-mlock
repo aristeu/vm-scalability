@@ -9,6 +9,6 @@
 # 41206		free_pcppages_bulk
 # 29641		rmqueue_bulk
 
-source hw_vars
+source ./hw_vars
 
 $USEMEM -n $nr_cpu --mlock $((reclaimable / nr_cpu / 3))

@@ -90,7 +90,7 @@ perf_events=$(echo $perf_events | sed 's/ / -e /g')
 ################################################################################
 # run it
 
-source hw_vars
+source ./hw_vars
 
 OUT_DIR=$(hostname)-${nr_cpu}c-$(((mem + (1<<29))>>30))g
 TEST_CASES=${@:-$(echo case-*)}

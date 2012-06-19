@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source hw_vars
+source ./hw_vars
 
 # XXX: due to fragmentation, it normally allocates much less memory
 echo $((mem/Hugepagesize/1024 / 3)) > /proc/sys/vm/nr_hugepages

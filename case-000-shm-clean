@@ -2,7 +2,7 @@
 
 # fill memory with clean shm/tmpfs pages
 
-source hw_vars
+source ./hw_vars
 
 size=$((mem / 3))
 size=$((mem))

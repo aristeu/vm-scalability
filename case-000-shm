@@ -2,7 +2,7 @@
 
 # fill memory with shm/tmpfs pages
 
-source hw_vars
+source ./hw_vars
 
 create_sparse_file /dev/shm/XXX $((mem/3))
 

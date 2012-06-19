@@ -2,6 +2,6 @@
 
 # fill memory with anon pages
 
-source hw_vars
+source ./hw_vars
 
 $USEMEM $((mem/3)) --detach --sleep 100000 --pid-file $PIDFILE

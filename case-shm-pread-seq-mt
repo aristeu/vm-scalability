@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source hw_vars
+source ./hw_vars
 
 create_sparse_file $SHM_FILE $((mem / 2))
 
