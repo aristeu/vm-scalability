@@ -115,9 +115,9 @@ do
 	save_stats $OUT_DIR/$testcase
 
 	# run again to collect perf stats
-	perf stat -a -e $perf_events ./$testcase 2>$OUT_DIR/$testcase/perf-stat || break
+	perf stat -a -e $perf_events -o $OUT_DIR/$testcase/perf-stat ./$testcase
 
-	perf record -afg -o /dev/shm/perf.data ./$testcase 2>/dev/null || break
+	perf record -afg -o /dev/shm/perf.data ./$testcase 2>/dev/null || continue
 	perf report -g fractal,5 -i /dev/shm/perf.data 2>/dev/null > $OUT_DIR/$testcase/perf-report
 done
 
